@@ -1,8 +1,8 @@
 # Global LLM configuration
 [llm]
-model = "claude-3-5-sonnet"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."
+model = "deepseek-chat"
+base_url = "https://api.deepseek.com"
+api_key = "sk-eeb6cb2d94f94716bbdc1cb490cf9c95"
 max_tokens = 4096
 temperature = 0.0
 

@@ -249,7 +249,7 @@ class PlanningAgent(ToolCallAgent):
 async def main():
     # Configure and run the agent
     agent = PlanningAgent(available_tools=ToolCollection(PlanningTool(), Terminate()))
-    result = await agent.run("Help me plan a trip to the moon")
+    result = await agent.run("Help me caculate 1+54-7*5")
     print(result)
 
 
