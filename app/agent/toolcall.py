@@ -30,14 +30,14 @@ class ToolCallAgent(ReActAgent):
 
     tool_calls: List[ToolCall] = Field(default_factory=list)
 
-    max_steps: int = 30
+    max_steps: int = 10
 
     async def think(self) -> bool:
         """Process current state and decide next actions using tools"""
         if self.next_step_prompt:
             user_msg = Message.user_message(self.next_step_prompt)
             self.messages += [user_msg]
-
+        print("message:", self.messages) # Yym测试
         # Get response with tool options
         response = await self.llm.ask_tool(
             messages=self.messages,
@@ -47,6 +47,7 @@ class ToolCallAgent(ReActAgent):
             tools=self.available_tools.to_params(),
             tool_choice=self.tool_choices,
         )
+        print("response:", response)  # Yym测试
         self.tool_calls = response.tool_calls
 
         # Log response info

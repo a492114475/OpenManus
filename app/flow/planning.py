@@ -85,13 +85,17 @@ class PlanningFlow(BaseFlow):
 
                 # Exit if no more steps or plan completed
                 if self.current_step_index is None:
+                    print("result:----------------", result, "-------------result")
+                    print("finalize_plan:----------------", await self._finalize_plan(), "-------------finalize_plan")
                     result += await self._finalize_plan()
                     break
 
                 # Execute current step with appropriate agent
                 step_type = step_info.get("type") if step_info else None
                 executor = self.get_executor(step_type)
+                print("step_info:----------------", step_info, "-------------step_info")
                 step_result = await self._execute_step(executor, step_info)
+                print("step_result:----------------", step_result, "-------------step_result" )
                 result += step_result + "\n"
 
                 # Check if agent wants to terminate

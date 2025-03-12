@@ -1,7 +1,8 @@
 import asyncio
 import time
-
+#  将计划分成两步，1.生成两条配方 2.预测其PCE值
 from app.agent.manus import Manus
+from app.agent.WIT_agent import WIT_agent
 from app.flow.base import FlowType
 from app.flow.flow_factory import FlowFactory
 from app.logger import logger
@@ -9,7 +10,8 @@ from app.logger import logger
 
 async def run_flow():
     agents = {
-        "manus": Manus(),
+        "manus": WIT_agent(),
+        "manus2": Manus(),
     }
 
     while True:

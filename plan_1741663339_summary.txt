@@ -1,0 +1,14 @@
+Plan: Calculate 9+9-7*7 (ID: plan_1741663339)
+
+Progress: 3/3 steps completed (100.0%)
+Status: 3 completed, 0 in progress, 0 blocked, 0 not started
+
+Steps:
+0. [✓] Calculate 7*7
+1. [✓] Calculate 9+9
+2. [✓] Subtract the result of 7*7 from the result of 9+9
+
+Results:
+- 7 * 7 = 49
+- 9 + 9 = 18
+- 18 - 49 = -31

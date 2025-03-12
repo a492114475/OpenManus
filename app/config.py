@@ -24,9 +24,12 @@ class LLMSettings(BaseModel):
     api_type: str = Field(..., description="AzureOpenai or Openai")
     api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
 
+class DatabaseSettings(BaseModel):
+    folder: str = Field(..., description="Basic folder path for experimental results")  # 添加实验结果的文件夹路径（Database）
 
 class AppConfig(BaseModel):
     llm: Dict[str, LLMSettings]
+    database: DatabaseSettings  # 添加数据库配置
 
 
 class Config:
@@ -89,6 +92,9 @@ class Config:
                     name: {**default_settings, **override_config}
                     for name, override_config in llm_overrides.items()
                 },
+            },
+            "database": {
+                "folder": raw_config.get("database", {}).get("folder", "C:\\Users\\Administrator\\OpenManus\\assets\\data"),
             }
         }
 
@@ -97,6 +103,10 @@ class Config:
     @property
     def llm(self) -> Dict[str, LLMSettings]:
         return self._config.llm
+
+    @property
+    def database(self) -> DatabaseSettings:
+        return self._config.database
 
 
 config = Config()

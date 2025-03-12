@@ -1,10 +1,14 @@
 # Global LLM configuration
 [llm]
-model = "deepseek-chat"
-base_url = "https://api.deepseek.com"
-api_key = "sk-eeb6cb2d94f94716bbdc1cb490cf9c95"
+model = "qwen-plus"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+api_key = "sk-01a8937c3e4141fdb47ade134c01fbb6"
 max_tokens = 4096
 temperature = 0.0
+
+
+[database]
+folder = "C:\\Users\\Administrator\\OpenManus\\assets\\data"
 
 # [llm] #AZURE OPENAI:
 # api_type= 'azure'
