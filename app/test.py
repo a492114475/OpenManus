@@ -1,157 +1,144 @@
-import base64
-import io
-import json
-import os
-from datetime import datetime
-from typing import List, Optional
-import numpy as np
-import pandas as pd
-from PIL import Image
-from flask import jsonify, request, current_app
-from flask import Blueprint
-from matplotlib import pyplot as plt
-from werkzeug.utils import secure_filename
 from openai import OpenAI
-
-client = OpenAI(
-    # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
-    api_key="sk-a8df86551e5e4ad89f2c7b1f54ddc25d",
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-)
-
-prompt_template = """
-You are an expert in perovskite materials. Based on the provided perovskite solar cell data, learn the relationships between the parameters and performance metrics.
-
-Parameters:
-- Formula PVK
-- Formula SAM 1
-- Concentration SAM 1
-- Formula SAM 2
-- Concentration SAM 2
-- Formula Additive 1
-- Formula Additive 2
-
-Performance Metrics:
-- PCE
-- FF
-- Voc
-- Jsc
-
-Focus on mimicking the data to generate 10 new sets of parameters that are similar and diverse to the given data. Provide the results in JSON format with the following keys:
-'Formula PVK', 'Formula SAM 1', 'Concentration SAM 1', 'Formula SAM 2', 'Concentration SAM 2', 'Formula Additive 1', 'Formula Additive 2', 'PCE', 'FF', 'Voc', 'Jsc'.
-
-Please avoid generating NA values and exclude any code or extraneous text.
-
-Data:
-{context}
-
-Question:
-{question}
-"""
-
-class Document:
-    def __init__(self, page_content: str, metadata: dict):
-        self.page_content = page_content
-        self.metadata = metadata
+import json
 
 
-class PromptTemplate:
-    def __init__(self, input_variables, template):
-        self.input_variables = input_variables
-        self.template = template
 
-    def format(self, **kwargs):
-        # 确认所有必需的变量都已提供
-        for var in self.input_variables:
-            if var not in kwargs:
-                raise ValueError(f"Missing input variable: {var}")
+# 设置模型路径   本地调用
+# model_path = "/opt/LLM_Base_Model/DeepSeek-R1-Distill-Llama-32B/"
+client = OpenAI(api_key="sk-01a8937c3e4141fdb47ade134c01fbb6", base_url="https://dashscope.aliyuncs.com/compatible-mode/v1")
 
-        # 使用提供的变量格式化模板
-        return self.template.format(**kwargs)
+def load_context(json_file_path):
+    """
+    从 JSON 文件加载上下文信息。
 
+    参数:
+        json_file_path (str): JSON 文件的路径。
 
-# 自定义 JSON 加载器
-def json_loader(file_path: str) -> Optional[Document]:
+    返回:
+        str: 格式化后的上下文字符串。
+    """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        text = json.dumps(data, ensure_ascii=False, indent=4)
-        return Document(page_content=text, metadata={"source": file_path})
+        with open(json_file_path, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+            # 检查 JSON 数据是否为列表
+            if isinstance(data, list):
+                # 格式化每个条目
+                formatted_entries = []
+                for idx, entry in enumerate(data, 1):
+                    formatted_entry = f"No. {idx}:\n"
+                    for key, value in entry.items():
+                        formatted_entry += f"  - {key}: {value}\n"
+                    formatted_entries.append(formatted_entry)
+                # 将所有条目合并为一个字符串
+                context = "\n".join(formatted_entries)
+                return context
+            else:
+                print("JSON 数据不是一个列表。")
+                return ""
     except Exception as e:
-        print(f"Error loading {file_path}: {e}")
-        return None
+        print(f"加载 JSON 文件时出错: {e}")
+        return ""
 
+def create_prompt(context, question):
+    """
+    创建用于模型的提示，将上下文和问题结合起来。
 
-# 假设要定义的基类
-class DirectoryLoader:
-    def __init__(self, path: str, loader_cls):
-        self.path = path
-        self.loader_cls = loader_cls
+    参数:
+        context (str): 上下文信息。
+        question (str): 用户的问题。
 
+    返回:
+        list: 包含一个系统消息和一个用户消息的消息列表。
+    """
+    prompt = f"""
+    You are an expert in perovskite materials. Based on the provided perovskite solar cell data, learn the relationships between the parameters and performance metrics.
 
-# 自定义 JSON 目录加载器
-class JSONDirectoryLoader(DirectoryLoader):
-    def load(self) -> List[Document]:
-        docs = []
+    Parameters:
+    - Formula PVK
+    - Formula SAM 1
+    - Concentration SAM 1
+    - Formula SAM 2
+    - Concentration SAM 2
+    - Formula Additive 1
+    - Formula Additive 2
+    - Spin Coating Speed 1
+    - Spin Coating Time 1
+    - Spin Coating Speed 2
+    - Spin Coating Time 2
+    - Antisolvent Volume
+    - Antisolvent Dropping Timing
+    - Annealed Temperature
+    - Annealed Time
 
-        if not os.path.exists(self.path):
-            print(f"Directory {self.path} does not exist.")
-            return docs
+    Performance Metrics:
+    - PCE
+    - FF
+    - Voc
+    - Jsc
 
-        for file_name in os.listdir(self.path):
-            if file_name.endswith(".json"):
-                file_path = os.path.join(self.path, file_name)
-                doc = self.loader_cls(file_path)
-                if doc is not None:
-                    docs.append(doc)
-        return docs
+    Focus on mimicking the data to generate 10 new sets of parameters that are similar and diverse to the given data. Provide the results in JSON format with the following keys:
+    'Formula PVK', 'Formula SAM 1', 'Concentration SAM 1', 'Formula SAM 2', 'Concentration SAM 2', 'Formula Additive 1', 'Concentration Additive 1', 'Formula Additive 2', 'Concentration Additive 2', 'Spin Coating Speed 1', 'Spin Coating Time 1', 'Spin Coating Speed 2', 'Spin Coating Time 2', 'Antisolvent Volume', 'Antisolvent Dropping Timing', 'Annealed Temperature', 'Annealed Time', 'PCE', 'FF', 'Voc', 'Jsc'.
 
+    Please avoid generating NA values and exclude any code or extraneous text.
 
-upload_generate = Blueprint('upload_generate', __name__)
+    Data:
+    {context}
 
+    Question: 
+    {question}
 
-@upload_generate.route('/upload_generate', methods=['POST'])
-def upload_file_csv():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    # 假设的API地址和密钥（请根据实际文档调整）
-    if not file.filename.endswith('.json'):
-        return jsonify({"error": "File is not a JSON file based on extension"}), 400
+    """
 
-        # 获取当前时间，格式化为字符串
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    messages = [
+        {"role": "system",
+         "content": "You are an expert in perovskite materials. Focus on mimicking the data to generate parameters data that are similar to the given parameters data."},
+        {"role": "user", "content": prompt}
+    ]
 
-    # 创建基于时间命名的文件夹
-    upload_directory = os.path.join('upload_json', timestamp)
-    os.makedirs(upload_directory, exist_ok=True)
+    return messages
 
-    # 保存文件到新的文件夹中
-    file_path = os.path.join(upload_directory, file.filename)
-    file.save(file_path)
+def get_answer(messages):
+    """
+    发送请求到 API 并获取回答。
+
+    参数:
+        messages (list): 消息列表，包括系统消息和用户消息。
+        model_path (str): 模型的路径或标识符。
+
+    返回:
+        str: 模型生成的回答内容。
+    """
     try:
-        # 尝试解析文件内容
-        loader = JSONDirectoryLoader(upload_directory, loader_cls=json_loader)
-        docs = loader.load()
-        context = "\n".join([doc.page_content for doc in docs])
-        generate_size = request.form.get('size')
-        query = "Generate diversify "+str(generate_size) + " sets of parameters similar to the context and fill them in json format:'Formula PVK', 'Formula SAM 1', 'Concentration SAM 1', 'Formula SAM 2', 'Concentration SAM 2', 'Formula Additive 1', 'Formula Additive 2', 'PCE', 'FF', 'Voc', 'Jsc', Please don't generate NA values, don't output any code and other redundant words."
-
-        prompt_filled = prompt_template.format(context=context, question=query)
-        completion = client.chat.completions.create(
-            model="qwen-plus",  # 模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
-            messages=[
-                {'role': 'system', 'content': prompt_filled},
-                {'role': 'user', 'content': query}],
+        result = client.chat.completions.create(
+            messages=messages,
+            model='qwen-plus',
+            temperature=0.7,
+            top_p=0.9,
+            max_tokens=4096,
         )
+        # 提取回答内容
+        answer = result.choices[0].message.content.strip()
+        return answer
+    except Exception as e:
+        print(f"请求 API 时出错: {e}")
+        return ""
 
-        generated_content = completion.choices[0].message.content
+# 参考 120 条数据推荐
 
-        result_file_path = os.path.join(upload_directory, 'result.txt')
+# json_file_path = "test/data_pvk_dpo_1th.json"  # 替换为您的 JSON 文件路径
+num =1
+# question = "Generate diversify 1 sets of perovskite data PCE of 21%-23% fill them in json format."  # 替换为您的问题
+question = "Generate diversify " + str(
+    num) + " sets of perovskite data PCE of 21%-23% fill them in json format."  # 替换为您的问题
+print(question)
+# 加载上下文
+# context = load_context(json_file_path)
+context =""
+# 创建提示
+messages = create_prompt(context, question)
 
-        with open(result_file_path, 'w', encoding='utf-8') as result_file:
-            result_file.write(generated_content)
+# 获取回答
+answer = get_answer(messages)
 
-        return completion.choices[0].message.content
-    except json.JSONDecodeError:
-        return jsonify({"error": "File content is not valid JSON"}), 400
+# 输出回答
+print("回答:", answer)

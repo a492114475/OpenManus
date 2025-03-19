@@ -11,7 +11,7 @@ from app.logger import logger
 async def run_flow():
     agents = {
         "manus": WIT_agent(),
-        "manus2": Manus(),
+        # "manus2": Manus(),
     }
 
     while True:

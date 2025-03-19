@@ -13,7 +13,7 @@ from app.tool.path_generator import PathGenerator
 from app.tool.python_execute import PythonExecute
 from app.tool.performing_generation import PerformingGeneration
 
-
+# 基于用basic.json生成2条配方，并评估
 class WIT_agent(ToolCallAgent):
     """
     A versatile general-purpose agent that uses planning to solve various tasks.
